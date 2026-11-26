@@ -1,0 +1,7 @@
+# live data, regenerated on every run (lift report, avalanche bulletins, alert bookkeeping)
+app/data/
+.cache/
+node_modules/
+.claude/
+# push notification signing key - never commit
+.vapid-private-key.txt

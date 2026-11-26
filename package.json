@@ -1,0 +1,11 @@
+{
+  "name": "ski-resort-tracker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Personal SuperSkiCard resort tracker (installable web app for iPhone)",
+  "scripts": {
+    "fetch": "node scripts/fetch-status.mjs",
+    "serve": "node scripts/serve.mjs"
+  }
+}

@@ -1,0 +1,70 @@
+# Fetches the latest lift report and avalanche bulletins, sends the phone its alerts and
+# publishes the app to GitHub Pages. Runs on every push and on a timer.
+name: Update data and publish
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    # times are UTC (Austria = UTC+1 in winter)
+    - cron: '7,27,47 5-16 * * *'   # every 20 minutes during the ski day (06:07-17:47 local)
+    - cron: '27 18,21,3 * * *'     # evening (tip for tomorrow) and overnight
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - id: pages
+        uses: actions/configure-pages@v5
+
+      # The data that is live right now is the fallback if a source can't be read this run,
+      # and the "before" picture for noticing that a watched lift opened or closed.
+      - name: Start from the data that is currently live
+        env:
+          BASE: ${{ steps.pages.outputs.base_url }}
+        run: |
+          mkdir -p app/data .cache
+          for f in status avalanche alert-state; do
+            curl -fsS "$BASE/data/$f.json" -o "app/data/$f.json" || echo "no previous $f.json"
+          done
+          cp app/data/status.json .cache/prev-status.json 2>/dev/null || true
+
+      - name: Fetch live lift data
+        run: node scripts/fetch-status.mjs
+
+      - name: Fetch avalanche bulletins
+        run: node scripts/fetch-avalanche.mjs
+
+      - name: Send notifications
+        continue-on-error: true
+        env:
+          ALERT_CONFIG: ${{ secrets.ALERT_CONFIG }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_SUBJECT: https://github.com/${{ github.repository }}
+        run: node scripts/alerts.mjs
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: app
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

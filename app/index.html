@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Ski Tracker</title>
+  <meta name="description" content="Live lifts, weather, snow and avalanche terrain for every SuperSkiCard resort.">
+  <meta name="theme-color" content="#0f3a6b" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0b1522" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Ski Tracker">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-view="resorts">
+  <header class="top" id="top">
+    <div class="top-row">
+      <div>
+        <h1 id="view-title">Ski Tracker</h1>
+        <p class="updated" id="updated">Loading…</p>
+      </div>
+      <div class="top-actions">
+        <button class="icon-btn" id="btn-location" aria-label="Set location">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.500C5 14.800 12 21 12 21z"/><circle cx="12" cy="9.500" r="2.500"/></svg>
+        </button>
+        <button class="icon-btn" id="btn-refresh" aria-label="Refresh">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.340-5.660"/><path d="M20 4v5h-5"/></svg>
+        </button>
+      </div>
+    </div>
+    <nav class="days" id="days" aria-label="Day"></nav>
+  </header>
+
+  <!-- Resorts -->
+  <main class="view" id="view-resorts">
+    <div class="notice" id="notice" hidden></div>
+    <section class="changes" id="changes" hidden></section>
+    <p class="dayline" id="dayline"></p>
+    <section class="picks" id="picks" aria-label="Recommendations"></section>
+
+    <section class="controls" aria-label="Sort and filter">
+      <div class="segmented" id="sort" role="tablist">
+        <button role="tab" data-sort="score">Best conditions</button>
+        <button role="tab" data-sort="near">Nearest</button>
+        <button role="tab" data-sort="combo">Best nearby</button>
+      </div>
+      <div class="chips">
+        <button class="chip" id="chip-open" aria-pressed="false">Open only</button>
+        <button class="chip" id="chip-fav" aria-pressed="false">★ Favourites</button>
+        <span class="count" id="count"></span>
+      </div>
+    </section>
+
+    <section class="list" id="list" aria-label="Resorts"></section>
+
+    <footer class="about">
+      <p>Lifts &amp; pistes: <a href="https://www.superskicard.com/" target="_blank" rel="noopener">superskicard.com</a> ·
+        Weather: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> ·
+        Drive times: <a href="https://project-osrm.org/" target="_blank" rel="noopener">OSRM</a> ·
+        Avalanche bulletins: <span id="av-sources">official warning services (EAWS)</span>.</p>
+      <p>Unofficial personal app. Always check the resort’s own report and the official avalanche bulletin before you set off.</p>
+    </footer>
+  </main>
+
+  <!-- Map -->
+  <section class="view map-view" id="view-map" hidden aria-label="Map">
+    <div id="map"></div>
+    <div class="map-chips" id="map-chips">
+      <div class="segmented small" id="map-slope">
+        <button data-slope="angle">Slope angle</button>
+        <button data-slope="zones">Danger zones</button>
+        <button data-slope="off">Off</button>
+      </div>
+      <div class="map-toggles">
+        <button class="chip" id="map-pistes" aria-pressed="false">Pistes</button>
+        <button class="chip" id="map-sat" aria-pressed="false">Aerial</button>
+      </div>
+    </div>
+    <div class="map-legend" id="map-legend"></div>
+  </section>
+
+  <!-- Season -->
+  <main class="view" id="view-season" hidden></main>
+
+  <!-- Settings -->
+  <main class="view" id="view-settings" hidden>
+    <h3>What matters to you</h3>
+    <div class="panel" id="weights"></div>
+    <p class="muted small">These change the 0–100 score of every resort. “Short drive” only affects <b>Best nearby</b>.</p>
+
+    <h3>Your ski day</h3>
+    <div class="panel form">
+      <label>Longest drive
+        <select id="set-maxdrive">
+          <option value="0">No limit</option><option value="45">45 min</option><option value="60">1 hour</option>
+          <option value="90">1½ hours</option><option value="120">2 hours</option><option value="180">3 hours</option>
+        </select>
+      </label>
+      <label>On the first lift at <input id="set-firstlift" type="time" step="300"></label>
+      <label>Time to park and get ready
+        <select id="set-buffer">
+          <option value="15">15 min</option><option value="30">30 min</option><option value="45">45 min</option><option value="60">1 hour</option>
+        </select>
+      </label>
+    </div>
+
+    <h3>Notifications</h3>
+    <div class="panel form" id="alerts">
+      <p class="muted small" id="push-status"></p>
+      <label class="switch">Evening tip for tomorrow <input id="al-evening" type="checkbox"></label>
+      <label class="switch">Morning tip for today <input id="al-morning" type="checkbox"></label>
+      <label>Powder alert from
+        <select id="al-powder">
+          <option value="5">5 cm fresh snow</option><option value="10">10 cm fresh snow</option><option value="15">15 cm fresh snow</option>
+          <option value="20">20 cm fresh snow</option><option value="30">30 cm fresh snow</option>
+        </select>
+      </label>
+      <label>…or when a resort scores at least
+        <select id="al-score">
+          <option value="65">65 (good)</option><option value="75">75 (excellent)</option><option value="85">85 (exceptional)</option><option value="0">always send the tip</option>
+        </select>
+      </label>
+      <label class="switch">Watched lifts opening or closing <input id="al-lifts" type="checkbox"></label>
+      <button class="primary" id="btn-push">Turn on notifications</button>
+      <div id="push-code" hidden>
+        <p class="small"><b>One-time link to your phone.</b> Copy this code and save it in your GitHub repository as the secret
+          <code>ALERT_CONFIG</code> (Settings → Secrets and variables → Actions). Copy it again whenever you change the
+          settings above, your home location or your watched lifts.</p>
+        <textarea id="push-code-text" readonly rows="3"></textarea>
+        <button class="secondary" id="btn-copy-code">Copy code</button>
+        <p class="warn small" id="push-code-stale" hidden>Your alert settings changed since you last copied the code.</p>
+      </div>
+    </div>
+
+    <h3>Backup</h3>
+    <div class="panel form">
+      <p class="muted small">Favourites, ski days, watched lifts and preferences live only on this phone.</p>
+      <button class="secondary" id="btn-export">Copy backup</button>
+      <textarea id="import-text" rows="2" placeholder="Paste a backup here to restore it"></textarea>
+      <button class="secondary" id="btn-import">Restore backup</button>
+      <p class="muted small" id="backup-msg"></p>
+    </div>
+  </main>
+
+  <nav class="tabbar" id="tabbar" aria-label="Sections">
+    <button data-view="resorts" aria-current="true">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 19l6.500-11 4 6.500 2.500-4L21 19z"/></svg><span>Resorts</span>
+    </button>
+    <button data-view="map">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4L3 6.500v13.500l6-2.500 6 2.500 6-2.500V4l-6 2.500z"/><path d="M9 4v13.500M15 6.500V20"/></svg><span>Map</span>
+    </button>
+    <button data-view="season">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2.500"/><path d="M4 10h16M8 3v4M16 3v4M8.500 15l2.300 2.300 4.700-4.800"/></svg><span>Season</span>
+    </button>
+    <button data-view="settings">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 12h3M11 12h9M4 17h12M20 17h0"/><circle cx="16" cy="7" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="18" cy="17" r="2"/></svg><span>Settings</span>
+    </button>
+  </nav>
+
+  <!-- Resort detail -->
+  <div class="sheet" id="detail" hidden role="dialog" aria-modal="true" aria-labelledby="detail-title">
+    <div class="sheet-bar">
+      <button class="icon-btn" id="detail-close" aria-label="Back">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+      </button>
+      <span class="sheet-title" id="detail-title"></span>
+      <button class="icon-btn fav-btn" id="detail-fav" aria-label="Favourite" aria-pressed="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.500l2.700 5.500 6 .900-4.350 4.250 1.030 6-5.380-2.830-5.380 2.830 1.030-6L3.300 9.900l6-.900z"/></svg>
+      </button>
+    </div>
+    <div class="sheet-body" id="detail-body"></div>
+  </div>
+
+  <!-- Location -->
+  <div class="sheet" id="location" hidden role="dialog" aria-modal="true" aria-labelledby="location-title">
+    <div class="sheet-bar">
+      <button class="icon-btn" id="location-close" aria-label="Back">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+      </button>
+      <span class="sheet-title" id="location-title">Your location</span>
+      <span class="icon-btn-spacer"></span>
+    </div>
+    <div class="sheet-body">
+      <p class="muted" id="location-current"></p>
+      <button class="primary" id="btn-gps">Use my current location</button>
+      <p class="muted small" id="gps-msg"></p>
+      <h3>Or plan from another place</h3>
+      <form id="place-form" class="place-form">
+        <input id="place-input" type="search" placeholder="Town or city, e.g. Salzburg" autocomplete="off" enterkeyhint="search">
+        <button class="secondary" type="submit">Search</button>
+      </form>
+      <div id="place-results" class="place-results"></div>
+      <p class="muted small">Your position stays on this phone. To calculate drive times, a rounded position (about 100&nbsp;m) is sent to the OSRM routing service. If you switch on notifications, a position rounded to about 1&nbsp;km is part of the code you save in your own GitHub repository.</p>
+    </div>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
