@@ -51,11 +51,11 @@ The sliders under Settings scale these. "Best nearby" subtracts one point for ev
 
 ## Put it on your iPhone
 
-1. Create a free account on [github.com](https://github.com/) and a new **public** repository (for example `ski-tracker`).
+1. Create a free account on [github.com](https://github.com/) and a new **public** repository (this one is `Ultra-Fuzz/SRT`).
 2. Push this folder to it.
 3. In the repository: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
 4. Open the **Actions** tab and wait for "Update data and publish" to finish (about a minute).
-5. On the iPhone open `https://<your-user-name>.github.io/ski-tracker/` in **Safari**, tap **Share → Add to Home Screen**, and open the app from the new icon.
+5. On the iPhone open <https://ultra-fuzz.github.io/SRT/> in **Safari**, tap **Share → Add to Home Screen**, and open the app from the new icon.
 
 ### Switch on notifications (optional)
 
