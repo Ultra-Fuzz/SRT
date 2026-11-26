@@ -57,8 +57,13 @@ function loadDem(z, x, y) {
 async function decodeDem(key) {
   const img = new Image();
   img.crossOrigin = 'anonymous';
-  img.src = `${DEM_URL}/${key}.png`;
-  await img.decode();
+  // wait for onload rather than img.decode(): decode() never settles while the page is in
+  // the background, which would leave the slope layer blank after switching back to the app
+  await new Promise((resolve, reject) => {
+    img.onload = resolve;
+    img.onerror = () => reject(new Error('elevation tile unavailable'));
+    img.src = `${DEM_URL}/${key}.png`;
+  });
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = 256;
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
