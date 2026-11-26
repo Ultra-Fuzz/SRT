@@ -358,7 +358,7 @@ function aspectRose(aspects, color) {
     const p = (ang) => `${(20 + 17 * Math.cos(ang)).toFixed(1)},${(20 + 17 * Math.sin(ang)).toFixed(1)}`;
     return `<path d="M20,20 L${p(a0)} A17,17 0 0 1 ${p(a1)} Z" fill="${on.has(a) ? color : 'none'}" stroke="currentColor" stroke-opacity=".35" stroke-width=".8"/>`;
   }).join('');
-  return `<svg class="rose" viewBox="0 0 40 40" role="img" aria-label="Aspects: ${aspects.join(', ')}">${wedges}<text x="20" y="6.500" text-anchor="middle">N</text></svg>`;
+  return `<svg class="rose" viewBox="0 0 40 40" role="img" aria-label="Aspects: ${esc(aspects.join(', '))}">${wedges}<text x="20" y="6.500" text-anchor="middle">N</text></svg>`;
 }
 
 const band = (x) => {
@@ -378,7 +378,7 @@ function avalancheHtml(r, date) {
     return `<h3>Avalanche danger</h3><div class="panel"><p class="muted">${why}</p>
       <button class="secondary" data-action="map">Show slope angles on the map</button></div>`;
   }
-  const d = DANGER[b.max];
+  const d = DANGER[b.max] || DANGER[1];
   const ratings = [...(b.ratings || [])].sort((x, y) => (y.above ?? -1) - (x.above ?? -1));
   return `<h3>Avalanche danger <small>${b.exact ? '' : 'latest bulletin, '}${fmtDate(b.date, { weekday: 'short', day: 'numeric', month: 'short' })}</small></h3>
     <div class="panel avpanel">
@@ -387,9 +387,9 @@ function avalancheHtml(r, date) {
         <div><b>${d.label}</b><span class="muted">${esc(info?.regionName || '')}</span></div>
       </div>
       ${ratings.length > 1 || ratings[0]?.above != null || ratings[0]?.below != null ? `<ul class="av-bands">${ratings.map((x) =>
-        `<li><span class="av" style="background:${DANGER[x.level].bg};color:${DANGER[x.level].fg}">${x.level}</span>${band(x)}${x.period ? ` · ${x.period === 'am' ? 'morning' : 'afternoon'}` : ''}</li>`).join('')}</ul>` : ''}
+        `<li><span class="av" style="background:${(DANGER[x.level] || DANGER[1]).bg};color:${(DANGER[x.level] || DANGER[1]).fg}">${esc(x.level)}</span>${band(x)}${x.period ? ` · ${x.period === 'am' ? 'morning' : 'afternoon'}` : ''}</li>`).join('')}</ul>` : ''}
       ${(b.problems || []).map((p) => `<div class="av-problem">${p.aspects?.length ? aspectRose(p.aspects, d.bg) : ''}
-        <div><b>${esc(PROBLEM[p.type] || p.type.replace(/_/g, ' '))}</b><span>${p.aspects?.length === 8 ? 'all aspects' : p.aspects?.length ? 'facing ' + p.aspects.join(', ') : ''}${p.aspects?.length ? ' · ' : ''}${band(p)}</span></div></div>`).join('')}
+        <div><b>${esc(PROBLEM[p.type] || p.type.replace(/_/g, ' '))}</b><span>${p.aspects?.length === 8 ? 'all aspects' : p.aspects?.length ? 'facing ' + esc(p.aspects.join(', ')) : ''}${p.aspects?.length ? ' · ' : ''}${band(p)}</span></div></div>`).join('')}
       ${b.highlight ? `<p class="av-text">${esc(b.highlight)}</p>` : ''}
       <button class="primary" data-action="map">Show the affected slopes on the map</button>
       <a class="secondary" href="${esc(b.url)}" target="_blank" rel="noopener">Read the official bulletin</a>
@@ -632,7 +632,7 @@ function renderSeason() {
 
     ${days.length ? `<h3>Ski days <small>${days.length}</small></h3>
       <ul class="flist">${days.map((d) => `<li><span class="f-name">${esc(name(d.id))}</span><span class="f-type">${fmtDate(d.date, { weekday: 'short', day: 'numeric', month: 'short' })}</span>
-        <button class="del" data-del="${d.date}|${d.id}" aria-label="Remove">✕</button></li>`).join('')}</ul>` : ''}
+        <button class="del" data-del="${esc(d.date)}|${esc(d.id)}" aria-label="Remove">✕</button></li>`).join('')}</ul>` : ''}
 
     ${counts.length > 1 ? `<h3>Most skied</h3><ul class="flist">${counts.slice(0, 5).map((c) => `<li><span class="f-name">${esc(name(c.id))}</span><span class="f-state">${c.n} ${c.n === 1 ? 'day' : 'days'}</span></li>`).join('')}</ul>` : ''}
 
@@ -1002,8 +1002,15 @@ $('#btn-import').addEventListener('click', () => {
     if (d.app !== 'ski-tracker') throw new Error('not a backup');
     state.prefs = mergePrefs(d.prefs); savePrefs();
     state.favs = new Set(d.favs || []); store.set('favs', [...state.favs]);
-    state.log = (d.log || []).filter((x) => x.date && RESORTS.some((r) => r.id === x.id)); store.set('log', state.log);
-    state.watch = d.watch || {}; store.set('watch', state.watch);
+    const isDate = (v) => /^d{4}-d{2}-d{2}$/.test(v) && !Number.isNaN(Date.parse(v));
+    const known = (id) => RESORTS.some((r) => r.id === id);
+    state.favs = new Set([...state.favs].filter(known)); store.set('favs', [...state.favs]);
+    state.log = (Array.isArray(d.log) ? d.log : []).filter((x) => x && isDate(x.date) && known(x.id)).map((x) => ({ date: x.date, id: x.id })); store.set('log', state.log);
+    state.watch = {};
+    for (const [id, names] of Object.entries(d.watch && typeof d.watch === 'object' ? d.watch : {})) {
+      if (known(id) && Array.isArray(names)) state.watch[id] = names.filter((n) => typeof n === 'string').slice(0, 50);
+    }
+    store.set('watch', state.watch);
     $('#import-text').value = '';
     $('#backup-msg').textContent = 'Backup restored.';
     render();

@@ -136,4 +136,4 @@ async function main() {
 }
 
 // never fail the deployment because a notification could not be sent
-main().catch((err) => { console.error('alerts: ' + (err?.message || 'failed')); });
+main().catch(() => { console.error('alerts: could not complete this run (details withheld from the public log)'); });

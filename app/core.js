@@ -32,12 +32,26 @@ export const DEFAULT_PREFS = {
   alerts: { morning: true, evening: true, powderCm: 10, minScore: 75, lifts: true },
 };
 
+/** Saved or imported preferences, with every value forced into its expected type and range. */
 export function mergePrefs(saved) {
-  const p = saved || {};
+  const p = saved && typeof saved === 'object' ? saved : {};
+  const num = (v, fallback, lo, hi) => (Number.isFinite(+v) && v !== null && v !== '' ? clamp(+v, lo, hi) : fallback);
+  const d = DEFAULT_PREFS, w = p.weights || {}, a = p.alerts || {};
+  const weights = {};
+  for (const k of Object.keys(d.weights)) weights[k] = num(w[k], d.weights[k], 0, 2);
   return {
-    ...DEFAULT_PREFS, ...p,
-    weights: { ...DEFAULT_PREFS.weights, ...(p.weights || {}) },
-    alerts: { ...DEFAULT_PREFS.alerts, ...(p.alerts || {}) },
+    weights,
+    maxDrive: num(p.maxDrive, d.maxDrive, 0, 600),
+    firstLift: /^([01]d|2[0-3]):[0-5]d$/.test(p.firstLift) ? p.firstLift : d.firstLift,
+    buffer: num(p.buffer, d.buffer, 0, 180),
+    cardPrice: p.cardPrice == null ? null : num(p.cardPrice, null, 0, 100000),
+    alerts: {
+      morning: a.morning == null ? d.alerts.morning : !!a.morning,
+      evening: a.evening == null ? d.alerts.evening : !!a.evening,
+      lifts: a.lifts == null ? d.alerts.lifts : !!a.lifts,
+      powderCm: num(a.powderCm, d.alerts.powderCm, 1, 100),
+      minScore: num(a.minScore, d.alerts.minScore, 0, 100),
+    },
   };
 }
 
